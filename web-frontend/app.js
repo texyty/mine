@@ -88,10 +88,11 @@ async function checkHealth() {
 
 $("loginForm").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
   setMessage("authMessage", "");
-  setBusy(event.currentTarget, true);
+  setBusy(form, true);
   try {
-    const credentials = Object.fromEntries(new FormData(event.currentTarget));
+    const credentials = Object.fromEntries(new FormData(form));
     const data = await api("/api/auth/login", { method: "POST", body: JSON.stringify(credentials) });
     token = data.access_token;
     localStorage.removeItem("token");
@@ -102,24 +103,25 @@ $("loginForm").addEventListener("submit", async (event) => {
   } catch (error) {
     setMessage("authMessage", error.message);
   } finally {
-    setBusy(event.currentTarget, false);
+    setBusy(form, false);
   }
 });
 
 $("registerForm").addEventListener("submit", async (event) => {
   event.preventDefault();
+  const form = event.currentTarget;
   setMessage("authMessage", "");
-  setBusy(event.currentTarget, true);
+  setBusy(form, true);
   try {
-    const user = Object.fromEntries(new FormData(event.currentTarget));
+    const user = Object.fromEntries(new FormData(form));
     await api("/api/auth/register", { method: "POST", body: JSON.stringify(user) });
-    event.currentTarget.reset();
+    form.reset();
     setAuthMode("login");
     setMessage("authMessage", "Аккаунт создан. После активации доступа администратором можно входить в лаунчер.", true);
   } catch (error) {
     setMessage("authMessage", error.message);
   } finally {
-    setBusy(event.currentTarget, false);
+    setBusy(form, false);
   }
 });
 
