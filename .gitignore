@@ -1,0 +1,12 @@
+.env
+**/.env
+__pycache__/
+.pytest_cache/
+.venv/
+*.pyc
+*.db
+launcher/bin/
+launcher/obj/
+content/public/*
+!content/public/.gitkeep
+web-frontend/dist/

@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: launcher
+      POSTGRES_USER: launcher
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U launcher"], interval: 5s, timeout: 3s, retries: 10}
+    restart: unless-stopped
+  backend:
+    build: ./backend
+    environment:
+      ENVIRONMENT: production
+      APP_VERSION: 1.1.0
+      DATABASE_URL: postgresql+asyncpg://launcher:${POSTGRES_PASSWORD}@db:5432/launcher
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      BOOTSTRAP_ADMIN_USERNAME: ${BOOTSTRAP_ADMIN_USERNAME:-admin}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:?Set BOOTSTRAP_ADMIN_EMAIL in .env}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:?Set BOOTSTRAP_ADMIN_PASSWORD in .env}
+    depends_on: {db: {condition: service_healthy}}
+    ports: ["8000:8000"]
+    restart: unless-stopped
+  web:
+    build: ./web-frontend
+    depends_on:
+      - backend
+    ports: ["8080:80"]
+    restart: unless-stopped
+  content:
+    build: ./content
+    ports: ["8081:80"]
+    restart: unless-stopped
+volumes: {postgres_data: {}}

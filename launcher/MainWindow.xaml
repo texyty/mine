@@ -1,0 +1,30 @@
+<Window x:Class="MyCustomLauncher.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="MyCustom Launcher" Height="620" Width="960" MinHeight="560" MinWidth="820" WindowStartupLocation="CenterScreen" Background="#090C14">
+ <Window.Resources>
+  <Style TargetType="TextBox"><Setter Property="Background" Value="#111725"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#303A54"/><Setter Property="Padding" Value="13"/><Setter Property="FontSize" Value="14"/></Style>
+  <Style TargetType="PasswordBox"><Setter Property="Background" Value="#111725"/><Setter Property="Foreground" Value="White"/><Setter Property="BorderBrush" Value="#303A54"/><Setter Property="Padding" Value="13"/><Setter Property="FontSize" Value="14"/></Style>
+  <Style TargetType="Button"><Setter Property="Background" Value="#65D8C0"/><Setter Property="Foreground" Value="#07120F"/><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="16,12"/><Setter Property="FontWeight" Value="Bold"/><Setter Property="Cursor" Value="Hand"/></Style>
+  <Style TargetType="ComboBox"><Setter Property="Background" Value="#182034"/><Setter Property="Foreground" Value="White"/><Setter Property="Padding" Value="10"/></Style>
+ </Window.Resources>
+ <Grid><Grid.Background><RadialGradientBrush Center="0.15,0.05" GradientOrigin="0.15,0.05" RadiusX=".9" RadiusY=".9"><GradientStop Color="#27315F" Offset="0"/><GradientStop Color="#090C14" Offset=".7"/></RadialGradientBrush></Grid.Background>
+  <Grid Margin="46"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition/></Grid.RowDefinitions>
+   <DockPanel><TextBlock Text="◆  M Y C U S T O M" Foreground="White" FontWeight="Bold" FontSize="18"/><Button x:Name="LogoutButton" DockPanel.Dock="Right" HorizontalAlignment="Right" Content="Выйти" Background="#293249" Foreground="#D9E2F4" Visibility="Collapsed" Click="Logout_Click"/></DockPanel>
+   <Grid Grid.Row="1">
+    <Border x:Name="LoginPanel" Width="390" Padding="34" Background="#D9141927" BorderBrush="#303950" BorderThickness="1" CornerRadius="20" HorizontalAlignment="Center" VerticalAlignment="Center">
+     <StackPanel><TextBlock Text="Добро пожаловать" Foreground="White" FontWeight="Bold" FontSize="28"/><TextBlock Text="Войдите, чтобы запустить клиент" Foreground="#929DB7" Margin="0,6,0,26"/>
+      <TextBlock Text="ЛОГИН" Foreground="#8E99B2" FontSize="11" Margin="0,0,0,7"/><TextBox x:Name="UsernameBox"/>
+      <TextBlock Text="ПАРОЛЬ" Foreground="#8E99B2" FontSize="11" Margin="0,18,0,7"/><PasswordBox x:Name="PasswordBox"/>
+      <CheckBox x:Name="RememberBox" Content="Запомнить меня" Foreground="#BCC6DC" Margin="0,18,0,18"/>
+      <Button x:Name="LoginButton" Content="ВОЙТИ" Click="Login_Click"/>
+      <TextBlock x:Name="LoginStatus" TextWrapping="Wrap" Foreground="#FF8798" Margin="0,14,0,0" TextAlignment="Center"/>
+     </StackPanel>
+    </Border>
+    <Grid x:Name="LauncherPanel" Visibility="Collapsed" VerticalAlignment="Center"><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="330"/></Grid.ColumnDefinitions>
+     <StackPanel VerticalAlignment="Center" Margin="10,0,55,0"><TextBlock Text="M Y C U S T O M C L I E N T" Foreground="#65D8C0" FontWeight="Bold"/><TextBlock x:Name="GreetingText" Text="Готов к запуску" Foreground="White" FontWeight="Bold" FontSize="48" Margin="0,8,0,12"/><TextBlock Text="Защищённая игровая сессия и автоматическое обновление файлов." Foreground="#98A4BD" FontSize="16" TextWrapping="Wrap"/>
+      <StackPanel Orientation="Horizontal" Margin="0,34,0,0"><Ellipse x:Name="ServerDot" Width="9" Height="9" Fill="#65D8C0" Margin="0,0,9,0"/><TextBlock x:Name="ServerStatus" Text="Сервер доступен" Foreground="#B8C3D9"/></StackPanel></StackPanel>
+     <Border Grid.Column="1" Background="#D9141927" BorderBrush="#303950" BorderThickness="1" CornerRadius="20" Padding="28"><StackPanel VerticalAlignment="Center"><TextBlock Text="ПАМЯТЬ ДЛЯ ИГРЫ" Foreground="#8E99B2" FontSize="11"/><ComboBox x:Name="RamBox" Margin="0,9,0,24" SelectedIndex="2"><ComboBoxItem Content="2 GB" Tag="2"/><ComboBoxItem Content="3 GB" Tag="3"/><ComboBoxItem Content="4 GB" Tag="4"/><ComboBoxItem Content="6 GB" Tag="6"/><ComboBoxItem Content="8 GB" Tag="8"/></ComboBox>
+      <Button x:Name="PlayButton" Content="ИГРАТЬ" FontSize="17" Padding="18" Click="Play_Click"/><Button x:Name="CancelButton" Content="ОТМЕНИТЬ ОБНОВЛЕНИЕ" Margin="0,10,0,0" Background="#343D55" Foreground="#DDE5F6" Visibility="Collapsed" Click="Cancel_Click"/><ProgressBar x:Name="Progress" Height="6" Margin="0,20,0,0" Minimum="0" Maximum="100" Foreground="#65D8C0" Background="#283047"/><TextBlock x:Name="LaunchStatus" Text="Все готово" Foreground="#A7B2C9" TextWrapping="Wrap" TextAlignment="Center" Margin="0,12,0,0"/></StackPanel></Border>
+    </Grid>
+   </Grid>
+  </Grid>
+ </Grid>
+</Window>

@@ -1,0 +1,15 @@
+server {
+    listen ${PORT};
+    server_name _;
+    root /usr/share/nginx/html;
+
+    location = /healthz {
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        try_files $uri =404;
+        add_header X-Content-Type-Options nosniff always;
+    }
+}
