@@ -98,3 +98,11 @@ npm run build
 ```
 
 В `web-frontend/dist/runtime-config.js` должен появиться именно указанный API URL.
+
+## Автоматические релизы
+
+В Railway для backend-сервиса включите **Auto Deploy** для ветки `main`, а в
+Vercel оставьте Git Integration включённой. После каждого push сначала дождитесь
+успешной миграции PostgreSQL, затем проверьте `/health`: поле `version` должно
+соответствовать текущей версии backend. Интерфейс проверяется по Production URL
+Vercel после завершения связанного deployment.
