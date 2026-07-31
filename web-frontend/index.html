@@ -24,6 +24,10 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2M6 18H5a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2h1v5Zm12 0h1a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2h-1v5Zm0 0c0 2-2 3-5 3"/></svg>
           <span>Поддержка</span>
         </button>
+        <button class="nav-link" id="downloadLauncher" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 20h14"/></svg>
+          <span>Скачать лаунчер</span>
+        </button>
         <button class="nav-link" data-view="buyView" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l1 12H5L6 8Zm3 1V6a3 3 0 0 1 6 0v3"/></svg>
           <span>Купить</span>
@@ -37,7 +41,55 @@
   </header>
 
   <main>
-    <section id="authView" class="view auth-stage active" aria-labelledby="authTitle">
+    <section id="homeView" class="view home-view active" aria-label="Главная">
+      <div class="home-hero">
+        <div class="home-container hero-copy">
+          <h1>О нас</h1>
+          <p>Мы предоставляем вам лучший клиент для комфортной игры, который подарит новые впечатления от каждого запуска.</p>
+          <div class="hero-actions">
+            <button class="home-button home-button-primary" data-view="buyView" type="button">▣&nbsp; Купить</button>
+            <button class="home-button home-button-dark" data-view="supportView" type="button">Подробнее&nbsp; ➜</button>
+          </div>
+        </div>
+      </div>
+
+      <section class="home-section advantages-section">
+        <div class="home-container advantages-layout">
+          <div class="advantages-heading reveal">
+            <h2>Наши<br>преимущества</h2>
+            <p>Мы кратко изложили то, что вы получите после покупки нашего клиента.</p>
+          </div>
+          <article class="feature-card reveal" style="--delay: .05s"><span>◉</span><h3>Красивый внешний вид</h3><p>Большое количество визуальных функций сделает игру красочнее. Оформление клиента можно настроить полностью под себя.</p></article>
+          <article class="feature-card reveal" style="--delay: .1s"><span>☷</span><h3>Настраиваемость</h3><p>Практически каждую функцию можно настроить под себя и сохранить удобную конфигурацию для следующих запусков.</p></article>
+          <article class="feature-card reveal" style="--delay: .15s"><span>◌</span><h3>Оптимизация</h3><p>Мы постоянно улучшаем производительность клиента, чтобы он стабильно работал даже на слабых компьютерах.</p></article>
+          <article class="feature-card reveal" style="--delay: .2s"><span>↻</span><h3>Частые обновления</h3><p>Новые возможности, исправления и улучшения будут доставляться через лаунчер автоматически.</p></article>
+          <article class="feature-card reveal" style="--delay: .25s"><span>♙</span><h3>Лучшая поддержка</h3><p>Поможем с установкой, доступом, оплатой и любыми вопросами, связанными с клиентом.</p></article>
+        </div>
+      </section>
+
+      <section class="home-section stats-section" aria-label="Возможности сервиса">
+        <div class="home-container">
+          <div class="home-stats">
+            <article class="home-stat reveal"><span>♟</span><div><b>Пользователей</b><strong>Онлайн</strong></div></article>
+            <article class="home-stat reveal" style="--delay: .05s"><span>▶</span><div><b>Запуск клиента</b><strong>В один клик</strong></div></article>
+            <article class="home-stat reveal" style="--delay: .1s"><span>↻</span><div><b>Обновления</b><strong>Автоматически</strong></div></article>
+            <article class="home-stat reveal" style="--delay: .15s"><span>▣</span><div><b>Поддержка</b><strong>Каждый день</strong></div></article>
+          </div>
+        </div>
+      </section>
+
+      <footer class="home-footer">
+        <div class="home-container footer-grid reveal">
+          <div><strong class="footer-brand">NURSULTAN</strong><p>Игровой клиент для комфортной игры.</p></div>
+          <div><b>Навигация</b><button data-view="homeView">Главная</button><button data-view="buyView">Купить</button><button data-view="supportView">Поддержка</button></div>
+          <div class="footer-center"><span>Почта для связи:<br>support@example.com</span></div>
+          <div class="footer-right"><b>Документы</b><span>Политика конфиденциальности</span><span>Пользовательское соглашение</span><span>Правила пользования</span></div>
+        </div>
+        <p class="copyright">Copyright © NursultanClient 2026</p>
+      </footer>
+    </section>
+
+    <section id="authView" class="view auth-stage" aria-labelledby="authTitle">
       <div class="auth-panel">
         <h1 id="authTitle">Авторизация</h1>
 

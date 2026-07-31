@@ -5,7 +5,7 @@ const views = [...document.querySelectorAll(".view")];
 
 let token = localStorage.getItem("token") || sessionStorage.getItem("token");
 let currentUser = null;
-let previousPublicView = "authView";
+let previousPublicView = "homeView";
 let pageOffset = 0;
 const pageLimit = 25;
 let searchTimer;
@@ -273,8 +273,9 @@ $("forgotPassword").addEventListener("click", () => {
 });
 $("buySupport").addEventListener("click", () => showView("supportView"));
 $("supportBack").addEventListener("click", () => showView(token ? "dashboardView" : previousPublicView));
-$("brandButton").addEventListener("click", () => token ? showDashboard() : setAuthMode("login"));
+$("brandButton").addEventListener("click", () => showView("homeView"));
 $("authNav").addEventListener("click", () => token ? showDashboard() : setAuthMode("login"));
+$("downloadLauncher").addEventListener("click", () => showToast("Файл лаунчера ещё не опубликован."));
 document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => showView(button.dataset.view)));
 $("logout").addEventListener("click", () => logout());
 $("refresh").addEventListener("click", async () => {
@@ -309,6 +310,25 @@ $("users").addEventListener("click", async (event) => {
   } finally {
     button.disabled = false;
   }
+});
+
+const topbar = document.querySelector(".topbar");
+const updateTopbar = () => topbar.classList.toggle("scrolled", window.scrollY > 24);
+window.addEventListener("scroll", updateTopbar, { passive: true });
+updateTopbar();
+
+const revealObserver = "IntersectionObserver" in window
+  ? new IntersectionObserver((entries, observer) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add("is-visible");
+        observer.unobserve(entry.target);
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -45px" })
+  : null;
+document.querySelectorAll(".reveal").forEach((element) => {
+  if (revealObserver) revealObserver.observe(element);
+  else element.classList.add("is-visible");
 });
 
 checkHealth();
