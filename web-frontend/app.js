@@ -10,6 +10,7 @@ let pageOffset = 0;
 const pageLimit = 25;
 let searchTimer;
 let toastTimer;
+const launcherRequestId = new URLSearchParams(window.location.search).get("launcher_auth");
 
 async function api(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
@@ -97,7 +98,7 @@ $("loginForm").addEventListener("submit", async (event) => {
     sessionStorage.removeItem("token");
     const storage = $("rememberMe").checked ? localStorage : sessionStorage;
     storage.setItem("token", token);
-    await showDashboard();
+    if (!(await completeLauncherLogin())) await showDashboard();
   } catch (error) {
     setMessage("authMessage", error.message);
   } finally {
@@ -139,6 +140,21 @@ async function showDashboard() {
   } catch (error) {
     logout(false);
     setMessage("authMessage", error.message);
+  }
+}
+
+async function completeLauncherLogin() {
+  if (!launcherRequestId || !token) return false;
+  try {
+    await api("/api/launcher/web-auth/complete", {
+      method: "POST",
+      body: JSON.stringify({ request_id: launcherRequestId })
+    });
+    document.body.innerHTML = `<main class="auth-stage active"><div class="auth-panel launcher-confirm"><h1>Вход подтверждён</h1><p>Вернитесь в лаунчер — он продолжит авторизацию автоматически.</p></div></main>`;
+    return true;
+  } catch (error) {
+    setMessage("authMessage", error.message);
+    return false;
   }
 }
 
@@ -250,4 +266,4 @@ $("users").addEventListener("click", async (event) => {
 });
 
 checkHealth();
-if (token) showDashboard();
+if (token) completeLauncherLogin().then((completed) => { if (!completed) showDashboard(); });

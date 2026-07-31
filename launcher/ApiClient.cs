@@ -11,6 +11,14 @@ public sealed class ApiClient {
         try { using var response=await client.PostAsJsonAsync("api/launcher/login",new LauncherLoginRequest(username,password,hwid),ct); if(!response.IsSuccessStatusCode) throw await CreateException(response,ct); return await response.Content.ReadFromJsonAsync<LauncherLoginResponse>(Json,ct) ?? throw new LauncherApiException("Сервер вернул пустой ответ"); }
         catch(HttpRequestException ex){throw new LauncherApiException("Нет связи с сервером. Проверьте интернет и повторите попытку.",ex);} catch(TaskCanceledException ex) when(!ct.IsCancellationRequested){throw new LauncherApiException("Сервер не ответил вовремя.",ex);}
     }
+    public async Task<LauncherWebAuthStartResponse> StartWebAuthAsync(string hwid,CancellationToken ct=default) {
+        try { using var response=await client.PostAsJsonAsync("api/launcher/web-auth/start",new LauncherWebAuthStartRequest(hwid),ct); if(!response.IsSuccessStatusCode) throw await CreateException(response,ct); return await response.Content.ReadFromJsonAsync<LauncherWebAuthStartResponse>(Json,ct) ?? throw new LauncherApiException("Сервер не создал запрос входа"); }
+        catch(HttpRequestException ex){throw new LauncherApiException("Нет связи с сервером.",ex);} catch(TaskCanceledException ex) when(!ct.IsCancellationRequested){throw new LauncherApiException("Сервер не ответил вовремя.",ex);}
+    }
+    public async Task<LauncherWebAuthPollResponse> PollWebAuthAsync(string requestId,CancellationToken ct=default) {
+        try { using var response=await client.GetAsync($"api/launcher/web-auth/{Uri.EscapeDataString(requestId)}",ct); if(!response.IsSuccessStatusCode) throw await CreateException(response,ct); return await response.Content.ReadFromJsonAsync<LauncherWebAuthPollResponse>(Json,ct) ?? throw new LauncherApiException("Сервер вернул пустой ответ"); }
+        catch(HttpRequestException ex){throw new LauncherApiException("Нет связи с сервером.",ex);} catch(TaskCanceledException ex) when(!ct.IsCancellationRequested){throw new LauncherApiException("Сервер не ответил вовремя.",ex);}
+    }
     public async Task<bool> ValidateAsync(string token,CancellationToken ct=default) {
         using var request=new HttpRequestMessage(HttpMethod.Post,"api/launcher/session/validate"); request.Headers.Authorization=new AuthenticationHeaderValue("Bearer",token);
         try { using var response=await client.SendAsync(request,ct); return response.IsSuccessStatusCode; } catch(HttpRequestException){return false;} catch(TaskCanceledException){return false;}

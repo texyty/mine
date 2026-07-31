@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+import secrets
 import uuid
 
 from fastapi import Depends, FastAPI, HTTPException, Query, status
@@ -13,7 +14,8 @@ from .config import get_settings
 from .database import Base, SessionLocal, engine, get_db
 from .models import User, UserRole
 from .schemas import (AccessUpdateRequest, HwidResetRequest, LauncherLoginRequest,
-                      LauncherTokenResponse, LoginRequest, MessageResponse,
+                      LauncherTokenResponse, LauncherWebAuthStartRequest, LauncherWebAuthStartResponse,
+                      LauncherWebAuthCompleteRequest, LauncherWebAuthPollResponse, LoginRequest, MessageResponse,
                       RegisterRequest, SessionValidationResponse, TokenResponse,
                       UserResponse, UserPageResponse, AdminStatsResponse)
 from .security import (admin_user, bearer, create_token, current_user, decode_token,
@@ -45,6 +47,17 @@ settings = get_settings()
 app = FastAPI(title="Minecraft Launcher API", version=settings.app_version, lifespan=lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=[item.strip() for item in settings.cors_origins.split(",") if item.strip()], allow_credentials=False,
                    allow_methods=["GET", "POST", "PATCH"], allow_headers=["Authorization", "Content-Type"])
+
+# Short-lived bridge between an already authenticated browser and the desktop launcher.
+# Entries are deliberately one-time and never persisted with users or passwords.
+launcher_web_requests: dict[str, dict] = {}
+
+
+def expire_launcher_web_requests() -> None:
+    now = datetime.now(timezone.utc)
+    for request_id, item in list(launcher_web_requests.items()):
+        if item["expires_at"] <= now:
+            launcher_web_requests.pop(request_id, None)
 
 
 @app.get("/health")
@@ -98,6 +111,54 @@ async def launcher_login(body: LauncherLoginRequest, db: AsyncSession = Depends(
     await db.commit()
     token, expires = create_token(user, "launcher", settings.launcher_token_minutes)
     return LauncherTokenResponse(session_token=token, expires_in=expires, username=user.username)
+
+
+@app.post("/api/launcher/web-auth/start", response_model=LauncherWebAuthStartResponse)
+async def launcher_web_auth_start(body: LauncherWebAuthStartRequest):
+    expire_launcher_web_requests()
+    request_id = secrets.token_urlsafe(32)
+    launcher_web_requests[request_id] = {
+        "hwid": body.hwid.lower(),
+        "expires_at": datetime.now(timezone.utc) + timedelta(minutes=3),
+        "status": "pending",
+    }
+    return LauncherWebAuthStartResponse(request_id=request_id, expires_in=180)
+
+
+@app.post("/api/launcher/web-auth/complete", response_model=MessageResponse)
+async def launcher_web_auth_complete(body: LauncherWebAuthCompleteRequest, user: User = Depends(current_user),
+                                     db: AsyncSession = Depends(get_db)):
+    expire_launcher_web_requests()
+    item = launcher_web_requests.get(body.request_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Запрос входа не найден или истёк")
+    if not user.has_access:
+        item.update(status="denied", detail="Нет активной подписки")
+        return MessageResponse(message="Доступ к лаунчеру не активен")
+    if user.hwid is None:
+        user.hwid = item["hwid"]
+    elif user.hwid != item["hwid"]:
+        item.update(status="denied", detail="Данный аккаунт привязан к другому ПК")
+        return MessageResponse(message="Аккаунт привязан к другому ПК")
+    user.last_login_at = datetime.now(timezone.utc)
+    await db.commit()
+    token, _ = create_token(user, "launcher", settings.launcher_token_minutes)
+    item.update(status="approved", session_token=token, username=user.username)
+    return MessageResponse(message="Вход в лаунчер подтверждён")
+
+
+@app.get("/api/launcher/web-auth/{request_id}", response_model=LauncherWebAuthPollResponse)
+async def launcher_web_auth_poll(request_id: str):
+    expire_launcher_web_requests()
+    item = launcher_web_requests.get(request_id)
+    if item is None:
+        return LauncherWebAuthPollResponse(status="expired", detail="Время ожидания истекло")
+    response = LauncherWebAuthPollResponse(status=item["status"], detail=item.get("detail"))
+    if item["status"] == "approved":
+        response.session_token = item["session_token"]
+        response.username = item["username"]
+        launcher_web_requests.pop(request_id, None)
+    return response
 
 
 @app.get("/api/users/me", response_model=UserResponse)

@@ -26,6 +26,26 @@ class LauncherLoginRequest(LoginRequest):
     hwid: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
 
 
+class LauncherWebAuthStartRequest(BaseModel):
+    hwid: str = Field(pattern=r"^[a-fA-F0-9]{64}$")
+
+
+class LauncherWebAuthStartResponse(BaseModel):
+    request_id: str
+    expires_in: int
+
+
+class LauncherWebAuthCompleteRequest(BaseModel):
+    request_id: str = Field(min_length=20, max_length=128)
+
+
+class LauncherWebAuthPollResponse(BaseModel):
+    status: str
+    session_token: str | None = None
+    username: str | None = None
+    detail: str | None = None
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
