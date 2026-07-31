@@ -129,6 +129,11 @@ async function showDashboard() {
   try {
     const me = await api("/api/users/me");
     currentUser = me;
+    if ($("dashboardView").querySelector(".cabinet-shell")) {
+      renderCabinet(me);
+      showView("dashboardView");
+      return;
+    }
     $("welcome").textContent = `Привет, ${me.username}`;
     $("accessText").textContent = me.has_access ? "Активна" : "Неактивна";
     $("hwidText").textContent = me.hwid_bound ? "Устройство привязано" : "Не привязан";
@@ -139,10 +144,49 @@ async function showDashboard() {
     $("admin").classList.toggle("hidden", me.role !== "admin");
     showView("dashboardView");
     if (me.role === "admin") await Promise.all([loadUsers(), loadStats()]);
+    renderCabinet(me);
   } catch (error) {
     logout(false);
     setMessage("authMessage", error.message);
   }
+}
+
+function renderCabinet(me) {
+  const root = $("dashboardView");
+  const registered = new Date(me.created_at).toLocaleString("ru-RU");
+  const lastLogin = me.last_login_at ? new Date(me.last_login_at).toLocaleString("ru-RU") : "—";
+  const uid = String(me.id).split("-")[0].toUpperCase();
+  const products = me.has_access ? "Клиент MyCustom 1.16.5" : "Пока нет активных товаров";
+  root.innerHTML = `
+    <section class="cabinet-shell">
+      <div class="cabinet-title"><span>ЛИЧНЫЙ КАБИНЕТ</span><h1>Личный кабинет</h1><p>Управляйте доступом к клиенту и настройками аккаунта.</p></div>
+      <div class="cabinet-table">
+        <div class="cabinet-row"><b>◉&nbsp; UID</b><span>${uid}</span></div>
+        <div class="cabinet-row"><b>◇&nbsp; Логин</b><span>${escapeHtml(me.username)}</span></div>
+        <div class="cabinet-row"><b>⚒&nbsp; Группа</b><span>${me.role === "admin" ? "Администратор" : "Пользователь"}</span></div>
+        <div class="cabinet-row"><b>▣&nbsp; Дата регистрации</b><span>${registered}</span></div>
+        <div class="cabinet-row"><b>▣&nbsp; Последний вход</b><span>${lastLogin}</span></div>
+        <div class="cabinet-row"><b>✉&nbsp; E-mail</b><span>${escapeHtml(me.email)}</span></div>
+        <div class="cabinet-row"><b>▣&nbsp; HWID</b><span>${me.hwid_bound ? "Устройство привязано" : "Устройство ещё не привязано"}</span><button data-cabinet="hwid">Сбросить</button></div>
+        <div class="cabinet-row"><b>▣&nbsp; Купленные товары</b><span>${products}</span><button data-cabinet="products">Подробнее</button></div>
+        <div class="cabinet-row"><b>⚿&nbsp; Активация ключа</b><input id="activationKey" placeholder="Введите ключ"><button data-cabinet="activate">Активировать</button></div>
+      </div>
+      <div class="cabinet-actions"><button data-cabinet="promos">Мои промокоды</button><button data-cabinet="products">Купленные товары</button><button data-cabinet="download">⇩ Скачать лаунчер</button><button data-cabinet="password">✎ Сменить пароль</button><button class="cabinet-logout" data-cabinet="logout">⇥ Выйти</button></div>
+      <p id="cabinetMessage" class="message"></p>
+    </section>`;
+  root.querySelectorAll("[data-cabinet]").forEach((button) => button.addEventListener("click", () => {
+    const action = button.dataset.cabinet;
+    if (action === "logout") return logout();
+    if (action === "download") return showToast("Файл лаунчера ещё не опубликован в разделе загрузок.");
+    if (action === "hwid") return showToast("Сброс HWID выполняется через поддержку после проверки аккаунта.");
+    if (action === "products") return showToast(me.has_access ? "У вас активен доступ к MyCustom 1.16.5." : "Активных товаров пока нет.");
+    if (action === "promos") return showToast("У вас пока нет активных промокодов.");
+    if (action === "password") return showToast("Для смены пароля обратитесь в поддержку.");
+    if (action === "activate") {
+      const key = root.querySelector("#activationKey").value.trim();
+      showToast(key ? "Активация ключей ещё не подключена к API." : "Введите ключ активации.");
+    }
+  }));
 }
 
 async function completeLauncherLogin() {
@@ -211,7 +255,7 @@ function clearSession() {
   localStorage.removeItem("token");
   sessionStorage.removeItem("token");
   $("authNavLabel").textContent = "Авторизация";
-  $("admin").classList.add("hidden");
+  $("admin")?.classList.add("hidden");
 }
 
 function logout(notify = true) {
