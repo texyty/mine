@@ -11,7 +11,7 @@ class Settings(BaseSettings):
     jwt_issuer: str = "minecraft-launcher"
     web_token_minutes: int = 60
     launcher_token_minutes: int = 15
-    cors_origins: str = "http://localhost:8080"
+    cors_origins: str = "https://mine-web-ten.vercel.app,https://nursultan.fun,http://localhost:8080,http://localhost:5173"
     bootstrap_admin_username: str | None = None
     bootstrap_admin_email: str | None = None
     bootstrap_admin_password: str | None = None
