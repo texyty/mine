@@ -60,6 +60,20 @@ function showToast(text) {
   toastTimer = setTimeout(() => $("toast").classList.remove("show"), 3200);
 }
 
+function roleLabel(role) {
+  return { user: "Пользователь", admin: "Администратор", creator: "Создатель" }[role] || role;
+}
+
+function isStaff(user = currentUser) {
+  return user && (user.role === "admin" || user.role === "creator");
+}
+
+function syncNavigation(user) {
+  $("authNavLabel").textContent = "Кабинет";
+  $("downloadLauncher").classList.toggle("hidden", !user.has_access);
+  $("panelNav").classList.toggle("hidden", !isStaff(user));
+}
+
 function setBusy(form, busy) {
   const button = form.querySelector('button[type="submit"]');
   button.disabled = busy;
@@ -129,22 +143,9 @@ async function showDashboard() {
   try {
     const me = await api("/api/users/me");
     currentUser = me;
-    if ($("dashboardView").querySelector(".cabinet-shell")) {
-      renderCabinet(me);
-      showView("dashboardView");
-      return;
-    }
-    $("welcome").textContent = `Привет, ${me.username}`;
-    $("accessText").textContent = me.has_access ? "Активна" : "Неактивна";
-    $("hwidText").textContent = me.hwid_bound ? "Устройство привязано" : "Не привязан";
-    $("roleText").textContent = me.role === "admin" ? "Администратор" : "Пользователь";
-    $("accessBadge").textContent = me.has_access ? "Доступ активен" : "Нет доступа";
-    $("accessBadge").classList.toggle("off", !me.has_access);
-    $("authNavLabel").textContent = "Кабинет";
-    $("admin").classList.toggle("hidden", me.role !== "admin");
-    showView("dashboardView");
-    if (me.role === "admin") await Promise.all([loadUsers(), loadStats()]);
+    syncNavigation(me);
     renderCabinet(me);
+    showView("dashboardView");
   } catch (error) {
     logout(false);
     setMessage("authMessage", error.message);
@@ -163,7 +164,7 @@ function renderCabinet(me) {
       <div class="cabinet-table">
         <div class="cabinet-row"><b>◉&nbsp; UID</b><span>${uid}</span></div>
         <div class="cabinet-row"><b>◇&nbsp; Логин</b><span>${escapeHtml(me.username)}</span></div>
-        <div class="cabinet-row"><b>⚒&nbsp; Группа</b><span>${me.role === "admin" ? "Администратор" : "Пользователь"}</span></div>
+        <div class="cabinet-row"><b>⚒&nbsp; Группа</b><span>${roleLabel(me.role)}</span></div>
         <div class="cabinet-row"><b>▣&nbsp; Дата регистрации</b><span>${registered}</span></div>
         <div class="cabinet-row"><b>▣&nbsp; Последний вход</b><span>${lastLogin}</span></div>
         <div class="cabinet-row"><b>✉&nbsp; E-mail</b><span>${escapeHtml(me.email)}</span></div>
@@ -171,7 +172,7 @@ function renderCabinet(me) {
         <div class="cabinet-row"><b>▣&nbsp; Купленные товары</b><span>${products}</span><button data-cabinet="products">Подробнее</button></div>
         <div class="cabinet-row"><b>⚿&nbsp; Активация ключа</b><input id="activationKey" placeholder="Введите ключ"><button data-cabinet="activate">Активировать</button></div>
       </div>
-      <div class="cabinet-actions"><button data-cabinet="promos">Мои промокоды</button><button data-cabinet="products">Купленные товары</button><button data-cabinet="download">⇩ Скачать лаунчер</button><button data-cabinet="password">✎ Сменить пароль</button><button class="cabinet-logout" data-cabinet="logout">⇥ Выйти</button></div>
+      <div class="cabinet-actions"><button data-cabinet="promos">Мои промокоды</button><button data-cabinet="products">Купленные товары</button>${me.has_access ? '<button data-cabinet="download">⇩ Скачать лаунчер</button>' : ''}<button data-cabinet="password">✎ Сменить пароль</button>${isStaff(me) ? '<button data-cabinet="panel">▦ Панель</button>' : ''}<button class="cabinet-logout" data-cabinet="logout">⇥ Выйти</button></div>
       <p id="cabinetMessage" class="message"></p>
     </section>`;
   root.querySelectorAll("[data-cabinet]").forEach((button) => button.addEventListener("click", () => {
@@ -181,7 +182,8 @@ function renderCabinet(me) {
     if (action === "hwid") return showToast("Сброс HWID выполняется через поддержку после проверки аккаунта.");
     if (action === "products") return showToast(me.has_access ? "У вас активен доступ к MyCustom 1.16.5." : "Активных товаров пока нет.");
     if (action === "promos") return showToast("У вас пока нет активных промокодов.");
-    if (action === "password") return showToast("Для смены пароля обратитесь в поддержку.");
+    if (action === "password") return openPasswordDialog();
+    if (action === "panel") return showAdminPanel();
     if (action === "activate") {
       const key = root.querySelector("#activationKey").value.trim();
       showToast(key ? "Активация ключей ещё не подключена к API." : "Введите ключ активации.");
@@ -204,30 +206,75 @@ async function completeLauncherLogin() {
   }
 }
 
+function openPasswordDialog() {
+  $("passwordForm").reset();
+  setMessage("passwordMessage", "");
+  $("passwordDialog").showModal();
+}
+
+function closePasswordDialog() {
+  $("passwordDialog").close();
+  $("passwordForm").reset();
+}
+
+async function showAdminPanel() {
+  if (!currentUser) {
+    try {
+      currentUser = await api("/api/users/me");
+      syncNavigation(currentUser);
+    } catch (error) {
+      clearSession();
+      setAuthMode("login");
+      setMessage("authMessage", error.message);
+      return;
+    }
+  }
+  if (!isStaff()) {
+    showToast("Панель доступна только администрации.");
+    return;
+  }
+  showView("adminView");
+  await Promise.all([loadUsers(), loadStats()]);
+}
+
 async function loadUsers() {
   try {
-    setMessage("dashMessage", "");
+    setMessage("adminMessage", "");
     const search = encodeURIComponent($("userSearch").value.trim());
     const page = await api(`/api/admin/users?offset=${pageOffset}&limit=${pageLimit}&search=${search}`);
     $("users").innerHTML = page.items.length
-      ? page.items.map((user) => `
+      ? page.items.map((user) => {
+        const canManage = currentUser.role === "creator" || user.role === "user";
+        const roleControl = currentUser.role === "creator"
+          ? `<div class="role-control"><select data-role-select="${user.id}">
+              <option value="user" ${user.role === "user" ? "selected" : ""}>Пользователь</option>
+              <option value="admin" ${user.role === "admin" ? "selected" : ""}>Администратор</option>
+              <option value="creator" ${user.role === "creator" ? "selected" : ""}>Создатель</option>
+            </select><button class="action" data-role-save="${user.id}">Сохранить</button></div>`
+          : `<span class="role-badge role-${user.role}">${roleLabel(user.role)}</span>`;
+        return `
         <tr>
           <td><strong>${escapeHtml(user.username)}</strong><br><small>${escapeHtml(user.email)}</small></td>
-          <td>${user.has_access ? "Активен" : "Отключён"}</td>
+          <td>${roleControl}</td>
+          <td><span class="status-pill ${user.has_access ? "on" : "off"}">${user.has_access ? "Активна" : "Нет"}</span></td>
           <td>${user.hwid_bound ? "Привязан" : "—"}</td>
+          <td><span class="status-pill ${user.is_banned ? "banned" : "on"}">${user.is_banned ? "Бан" : "Активен"}</span>${user.ban_reason ? `<small class="ban-reason">${escapeHtml(user.ban_reason)}</small>` : ""}</td>
           <td>${user.last_login_at ? new Date(user.last_login_at).toLocaleString("ru-RU") : "—"}</td>
-          <td>
-            <button class="action ${user.has_access ? "danger" : "success"}" data-access="${user.id}" data-value="${!user.has_access}">${user.has_access ? "Отключить" : "Включить"}</button>
-            <button class="action" data-reset="${user.id}">Сбросить HWID</button>
+          <td><div class="user-actions">
+            <button class="action ${user.has_access ? "danger" : "success"}" data-access="${user.id}" data-value="${!user.has_access}" ${canManage ? "" : "disabled"}>${user.has_access ? "Убрать подписку" : "Выдать подписку"}</button>
+            <button class="action" data-reset="${user.id}" ${canManage ? "" : "disabled"}>Сбросить HWID</button>
+            <button class="action ${user.is_banned ? "success" : "danger"}" data-ban="${user.id}" data-value="${!user.is_banned}" ${canManage ? "" : "disabled"}>${user.is_banned ? "Разбанить" : "Забанить"}</button>
+          </div>
           </td>
-        </tr>`).join("")
-      : '<tr><td colspan="5">Пользователи не найдены</td></tr>';
+        </tr>`;
+      }).join("")
+      : '<tr><td colspan="7">Пользователи не найдены</td></tr>';
     $("userCount").textContent = `Найдено: ${page.total}`;
     $("pageInfo").textContent = `${Math.floor(page.offset / page.limit) + 1} / ${Math.max(1, Math.ceil(page.total / page.limit))}`;
     $("prevPage").disabled = page.offset === 0;
     $("nextPage").disabled = page.offset + page.limit >= page.total;
   } catch (error) {
-    setMessage("dashMessage", error.message);
+    setMessage("adminMessage", error.message);
   }
 }
 
@@ -238,8 +285,10 @@ async function loadStats() {
     $("statActive").textContent = stats.active_users;
     $("statBound").textContent = stats.bound_devices;
     $("statAdmins").textContent = stats.administrators;
+    $("statCreators").textContent = stats.creators;
+    $("statBanned").textContent = stats.banned_users;
   } catch (error) {
-    setMessage("dashMessage", error.message);
+    setMessage("adminMessage", error.message);
   }
 }
 
@@ -255,7 +304,8 @@ function clearSession() {
   localStorage.removeItem("token");
   sessionStorage.removeItem("token");
   $("authNavLabel").textContent = "Авторизация";
-  $("admin")?.classList.add("hidden");
+  $("downloadLauncher").classList.add("hidden");
+  $("panelNav").classList.add("hidden");
 }
 
 function logout(notify = true) {
@@ -276,8 +326,34 @@ $("supportBack").addEventListener("click", () => showView(token ? "dashboardView
 $("brandButton").addEventListener("click", () => showView("homeView"));
 $("authNav").addEventListener("click", () => token ? showDashboard() : setAuthMode("login"));
 $("downloadLauncher").addEventListener("click", () => showToast("Файл лаунчера ещё не опубликован."));
+$("panelNav").addEventListener("click", showAdminPanel);
 document.querySelectorAll("[data-view]").forEach((button) => button.addEventListener("click", () => showView(button.dataset.view)));
 $("logout").addEventListener("click", () => logout());
+$("closePasswordDialog").addEventListener("click", closePasswordDialog);
+$("cancelPassword").addEventListener("click", closePasswordDialog);
+$("passwordDialog").addEventListener("click", (event) => {
+  if (event.target === $("passwordDialog")) closePasswordDialog();
+});
+$("passwordForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const body = Object.fromEntries(new FormData(form));
+  setMessage("passwordMessage", "");
+  if (body.new_password !== body.confirm_new_password) {
+    setMessage("passwordMessage", "Новые пароли не совпадают");
+    return;
+  }
+  setBusy(form, true);
+  try {
+    const response = await api("/api/users/change-password", { method: "POST", body: JSON.stringify(body) });
+    closePasswordDialog();
+    showToast(response.message);
+  } catch (error) {
+    setMessage("passwordMessage", error.message);
+  } finally {
+    setBusy(form, false);
+  }
+});
 $("refresh").addEventListener("click", async () => {
   await Promise.all([loadUsers(), loadStats()]);
   showToast("Данные обновлены");
@@ -304,9 +380,27 @@ $("users").addEventListener("click", async (event) => {
       await api("/api/admin/hwid-reset", { method: "POST", body: JSON.stringify({ user_id: button.dataset.reset }) });
       showToast("Привязка HWID сброшена");
     }
+    if (button.dataset.ban) {
+      const shouldBan = button.dataset.value === "true";
+      const reason = shouldBan ? window.prompt("Укажите причину блокировки:", "Нарушение правил") : null;
+      if (shouldBan && reason === null) return;
+      await api(`/api/admin/users/${button.dataset.ban}/ban`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_banned: shouldBan, reason })
+      });
+      showToast(shouldBan ? "Пользователь заблокирован" : "Пользователь разблокирован");
+    }
+    if (button.dataset.roleSave) {
+      const select = document.querySelector(`[data-role-select="${button.dataset.roleSave}"]`);
+      await api(`/api/admin/users/${button.dataset.roleSave}/role`, {
+        method: "PATCH",
+        body: JSON.stringify({ role: select.value })
+      });
+      showToast("Группа пользователя изменена");
+    }
     await Promise.all([loadUsers(), loadStats()]);
   } catch (error) {
-    setMessage("dashMessage", error.message);
+    setMessage("adminMessage", error.message);
   } finally {
     button.disabled = false;
   }

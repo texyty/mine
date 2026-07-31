@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
 
 from .models import UserRole
 
@@ -20,6 +20,20 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=10, max_length=128)
+    confirm_new_password: str = Field(min_length=10, max_length=128)
+
+    @model_validator(mode="after")
+    def validate_passwords(self):
+        if self.new_password != self.confirm_new_password:
+            raise ValueError("Новые пароли не совпадают")
+        if self.current_password == self.new_password:
+            raise ValueError("Новый пароль должен отличаться от текущего")
+        return self
 
 
 class LauncherLoginRequest(LoginRequest):
@@ -67,6 +81,8 @@ class UserResponse(BaseModel):
     hwid_bound: bool
     has_access: bool
     role: UserRole
+    is_banned: bool
+    ban_reason: str | None
     created_at: datetime
     last_login_at: datetime | None
 
@@ -75,7 +91,8 @@ class UserResponse(BaseModel):
         return cls(
             id=user.id, username=user.username, email=user.email,
             hwid_bound=user.hwid is not None, has_access=user.has_access,
-            role=user.role, created_at=user.created_at, last_login_at=user.last_login_at,
+            role=user.role, is_banned=user.is_banned, ban_reason=user.ban_reason,
+            created_at=user.created_at, last_login_at=user.last_login_at,
         )
 
 
@@ -85,6 +102,15 @@ class HwidResetRequest(BaseModel):
 
 class AccessUpdateRequest(BaseModel):
     has_access: bool
+
+
+class BanUpdateRequest(BaseModel):
+    is_banned: bool
+    reason: str | None = Field(default=None, max_length=300)
+
+
+class RoleUpdateRequest(BaseModel):
+    role: UserRole
 
 
 class MessageResponse(BaseModel):
@@ -109,3 +135,5 @@ class AdminStatsResponse(BaseModel):
     active_users: int
     bound_devices: int
     administrators: int
+    creators: int
+    banned_users: int

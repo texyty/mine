@@ -24,9 +24,13 @@
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14v-2a8 8 0 0 1 16 0v2M6 18H5a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2h1v5Zm12 0h1a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2h-1v5Zm0 0c0 2-2 3-5 3"/></svg>
           <span>Поддержка</span>
         </button>
-        <button class="nav-link" id="downloadLauncher" type="button">
+        <button class="nav-link hidden" id="downloadLauncher" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 20h14"/></svg>
           <span>Скачать лаунчер</span>
+        </button>
+        <button class="nav-link hidden" id="panelNav" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z"/></svg>
+          <span>Панель</span>
         </button>
         <button class="nav-link" data-view="buyView" type="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8h12l1 12H5L6 8Zm3 1V6a3 3 0 0 1 6 0v3"/></svg>
@@ -162,16 +166,38 @@
         <article class="stat-card"><span>Роль</span><strong id="roleText"></strong><small>Права в системе</small></article>
       </div>
 
-      <section id="admin" class="admin-panel hidden">
-        <div class="section-head"><div><p class="eyebrow">АДМИНИСТРИРОВАНИЕ</p><h2>Пользователи</h2></div><button id="refresh" class="outline-button" type="button">Обновить</button></div>
-        <div class="admin-stats"><span>Всего <strong id="statTotal">0</strong></span><span>С доступом <strong id="statActive">0</strong></span><span>HWID <strong id="statBound">0</strong></span><span>Админы <strong id="statAdmins">0</strong></span></div>
-        <div class="toolbar"><input id="userSearch" type="search" placeholder="Поиск по логину или email"><span id="userCount"></span></div>
-        <div class="table-wrap"><table><thead><tr><th>Пользователь</th><th>Доступ</th><th>HWID</th><th>Последний вход</th><th>Действия</th></tr></thead><tbody id="users"></tbody></table></div>
-        <div class="pager"><button id="prevPage" class="outline-button" type="button">Назад</button><span id="pageInfo"></span><button id="nextPage" class="outline-button" type="button">Вперёд</button></div>
-      </section>
       <p id="dashMessage" class="message" role="status"></p>
     </section>
+
+    <section id="adminView" class="view control-panel-view" aria-labelledby="adminTitle">
+      <div class="section-head panel-heading"><div><p class="eyebrow">УПРАВЛЕНИЕ ПРОЕКТОМ</p><h1 id="adminTitle">Панель управления</h1><span>Статистика, подписки, роли и блокировки пользователей.</span></div><button id="refresh" class="outline-button" type="button">Обновить</button></div>
+      <div class="admin-stats panel-stats">
+        <span>Всего <strong id="statTotal">0</strong></span>
+        <span>С подпиской <strong id="statActive">0</strong></span>
+        <span>HWID <strong id="statBound">0</strong></span>
+        <span>Админы <strong id="statAdmins">0</strong></span>
+        <span>Создатели <strong id="statCreators">0</strong></span>
+        <span>Заблокированы <strong id="statBanned">0</strong></span>
+      </div>
+      <div class="admin-panel users-panel">
+        <div class="toolbar"><input id="userSearch" type="search" placeholder="Поиск по логину или email"><span id="userCount"></span></div>
+        <div class="table-wrap"><table class="users-table"><thead><tr><th>Пользователь</th><th>Группа</th><th>Подписка</th><th>HWID</th><th>Статус</th><th>Последний вход</th><th>Управление</th></tr></thead><tbody id="users"></tbody></table></div>
+        <div class="pager"><button id="prevPage" class="outline-button" type="button">Назад</button><span id="pageInfo"></span><button id="nextPage" class="outline-button" type="button">Вперёд</button></div>
+      </div>
+      <p id="adminMessage" class="message" role="status"></p>
+    </section>
   </main>
+
+  <dialog id="passwordDialog" class="account-dialog">
+    <form id="passwordForm" class="dialog-card">
+      <div class="dialog-head"><div><span>БЕЗОПАСНОСТЬ АККАУНТА</span><h2>Смена пароля</h2></div><button id="closePasswordDialog" type="button" aria-label="Закрыть">×</button></div>
+      <label>Текущий пароль<input name="current_password" type="password" autocomplete="current-password" required></label>
+      <label>Новый пароль<input name="new_password" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></label>
+      <label>Повторите новый пароль<input name="confirm_new_password" type="password" minlength="10" maxlength="128" autocomplete="new-password" required></label>
+      <p id="passwordMessage" class="message" role="status"></p>
+      <div class="dialog-actions"><button id="cancelPassword" class="outline-button" type="button">Отмена</button><button class="submit-button" type="submit"><span>Изменить пароль</span></button></div>
+    </form>
+  </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script src="runtime-config.js"></script>

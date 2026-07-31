@@ -5,7 +5,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     environment: str = "development"
-    app_version: str = "1.1.0"
+    app_version: str = "1.2.0"
     database_url: str = "sqlite+aiosqlite:///./launcher.db"
     jwt_secret: str = "development-only-change-this-secret"
     jwt_issuer: str = "minecraft-launcher"

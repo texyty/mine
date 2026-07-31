@@ -13,12 +13,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .config import get_settings
 from .database import Base, SessionLocal, engine, get_db
 from .models import User, UserRole
-from .schemas import (AccessUpdateRequest, HwidResetRequest, LauncherLoginRequest,
+from .schemas import (AccessUpdateRequest, BanUpdateRequest, ChangePasswordRequest, HwidResetRequest, LauncherLoginRequest,
                       LauncherTokenResponse, LauncherWebAuthStartRequest, LauncherWebAuthStartResponse,
                       LauncherWebAuthCompleteRequest, LauncherWebAuthPollResponse, LoginRequest, MessageResponse,
-                      RegisterRequest, SessionValidationResponse, TokenResponse,
+                      RegisterRequest, RoleUpdateRequest, SessionValidationResponse, TokenResponse,
                       UserResponse, UserPageResponse, AdminStatsResponse)
-from .security import (admin_user, bearer, create_token, current_user, decode_token,
+from .security import (admin_user, bearer, create_token, creator_user, current_user, decode_token,
                        hash_password, verify_password)
 
 
@@ -60,6 +60,11 @@ def expire_launcher_web_requests() -> None:
             launcher_web_requests.pop(request_id, None)
 
 
+def ensure_can_manage(actor: User, target: User) -> None:
+    if actor.role == UserRole.admin and target.role != UserRole.user:
+        raise HTTPException(status_code=403, detail="Администратор может управлять только пользователями")
+
+
 @app.get("/health")
 async def health():
     async with SessionLocal() as db:
@@ -89,6 +94,11 @@ async def web_login(body: LoginRequest, db: AsyncSession = Depends(get_db)):
     user = await db.scalar(select(User).where(User.username == body.username.strip().lower()))
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+    if user.is_banned:
+        detail = "Аккаунт заблокирован"
+        if user.ban_reason:
+            detail += f": {user.ban_reason}"
+        raise HTTPException(status_code=403, detail=detail)
     user.last_login_at = datetime.now(timezone.utc)
     await db.commit()
     token, expires = create_token(user, "web", settings.web_token_minutes)
@@ -100,6 +110,8 @@ async def launcher_login(body: LauncherLoginRequest, db: AsyncSession = Depends(
     user = await db.scalar(select(User).where(User.username == body.username.strip().lower()).with_for_update())
     if user is None or not verify_password(body.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Неверный логин или пароль")
+    if user.is_banned:
+        raise HTTPException(status_code=403, detail="Аккаунт заблокирован")
     if not user.has_access:
         raise HTTPException(status_code=403, detail="Нет активной подписки")
     normalized_hwid = body.hwid.lower()
@@ -166,6 +178,16 @@ async def me(user: User = Depends(current_user)):
     return UserResponse.from_user(user)
 
 
+@app.post("/api/users/change-password", response_model=MessageResponse)
+async def change_password(body: ChangePasswordRequest, user: User = Depends(current_user),
+                          db: AsyncSession = Depends(get_db)):
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(status_code=400, detail="Текущий пароль указан неверно")
+    user.password_hash = hash_password(body.new_password)
+    await db.commit()
+    return MessageResponse(message="Пароль успешно изменён")
+
+
 @app.get("/api/admin/users", response_model=UserPageResponse)
 async def list_users(
     _: User = Depends(admin_user), db: AsyncSession = Depends(get_db),
@@ -192,21 +214,25 @@ async def admin_stats(_: User = Depends(admin_user), db: AsyncSession = Depends(
     active = int(await db.scalar(select(func.count()).select_from(User).where(User.has_access.is_(True))) or 0)
     bound = int(await db.scalar(select(func.count()).select_from(User).where(User.hwid.is_not(None))) or 0)
     admins = int(await db.scalar(select(func.count()).select_from(User).where(User.role == UserRole.admin)) or 0)
-    return AdminStatsResponse(total_users=total, active_users=active, bound_devices=bound, administrators=admins)
+    creators = int(await db.scalar(select(func.count()).select_from(User).where(User.role == UserRole.creator)) or 0)
+    banned = int(await db.scalar(select(func.count()).select_from(User).where(User.is_banned.is_(True))) or 0)
+    return AdminStatsResponse(total_users=total, active_users=active, bound_devices=bound,
+                              administrators=admins, creators=creators, banned_users=banned)
 
 
 @app.post("/api/admin/hwid-reset", response_model=MessageResponse)
-async def reset_hwid(body: HwidResetRequest, _: User = Depends(admin_user), db: AsyncSession = Depends(get_db)):
+async def reset_hwid(body: HwidResetRequest, actor: User = Depends(admin_user), db: AsyncSession = Depends(get_db)):
     user = await db.get(User, body.user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
+    ensure_can_manage(actor, user)
     user.hwid = None
     await db.commit()
     return MessageResponse(message="HWID успешно сброшен")
 
 
 @app.patch("/api/admin/users/{user_id}/access", response_model=UserResponse)
-async def update_access(user_id: str, body: AccessUpdateRequest, _: User = Depends(admin_user),
+async def update_access(user_id: str, body: AccessUpdateRequest, actor: User = Depends(admin_user),
                         db: AsyncSession = Depends(get_db)):
     try:
         parsed_user_id = uuid.UUID(user_id)
@@ -215,7 +241,38 @@ async def update_access(user_id: str, body: AccessUpdateRequest, _: User = Depen
     user = await db.get(User, parsed_user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="Пользователь не найден")
+    ensure_can_manage(actor, user)
     user.has_access = body.has_access
+    await db.commit()
+    await db.refresh(user)
+    return UserResponse.from_user(user)
+
+
+@app.patch("/api/admin/users/{user_id}/ban", response_model=UserResponse)
+async def update_ban(user_id: uuid.UUID, body: BanUpdateRequest, actor: User = Depends(admin_user),
+                     db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    ensure_can_manage(actor, user)
+    if user.id == actor.id and body.is_banned:
+        raise HTTPException(status_code=400, detail="Нельзя заблокировать собственный аккаунт")
+    user.is_banned = body.is_banned
+    user.ban_reason = (body.reason or "").strip() or None if body.is_banned else None
+    await db.commit()
+    await db.refresh(user)
+    return UserResponse.from_user(user)
+
+
+@app.patch("/api/admin/users/{user_id}/role", response_model=UserResponse)
+async def update_role(user_id: uuid.UUID, body: RoleUpdateRequest, actor: User = Depends(creator_user),
+                      db: AsyncSession = Depends(get_db)):
+    user = await db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if user.id == actor.id and body.role != UserRole.creator:
+        raise HTTPException(status_code=400, detail="Создатель не может понизить собственную роль")
+    user.role = body.role
     await db.commit()
     await db.refresh(user)
     return UserResponse.from_user(user)
@@ -232,6 +289,6 @@ async def validate_launcher_session(credentials: HTTPAuthorizationCredentials | 
     except (KeyError, ValueError) as exc:
         raise HTTPException(status_code=401, detail="Недействительный токен") from exc
     user = await db.get(User, user_id)
-    if user is None or not user.has_access:
+    if user is None or not user.has_access or user.is_banned:
         raise HTTPException(status_code=403, detail="Сессия отозвана или подписка неактивна")
     return SessionValidationResponse(valid=True, username=user.username, user_id=user.id)

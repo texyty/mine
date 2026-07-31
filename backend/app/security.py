@@ -64,11 +64,21 @@ async def current_user(
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=401, detail="Пользователь не найден")
+    if user.is_banned:
+        detail = "Аккаунт заблокирован"
+        if user.ban_reason:
+            detail += f": {user.ban_reason}"
+        raise HTTPException(status_code=403, detail=detail)
     return user
 
 
 async def admin_user(user: User = Depends(current_user)) -> User:
-    if user.role != UserRole.admin:
+    if user.role not in (UserRole.admin, UserRole.creator):
         raise HTTPException(status_code=403, detail="Требуются права администратора")
     return user
 
+
+async def creator_user(user: User = Depends(current_user)) -> User:
+    if user.role != UserRole.creator:
+        raise HTTPException(status_code=403, detail="Требуются права создателя")
+    return user

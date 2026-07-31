@@ -12,7 +12,7 @@ services:
     build: ./backend
     environment:
       ENVIRONMENT: production
-      APP_VERSION: 1.1.0
+      APP_VERSION: 1.2.0
       DATABASE_URL: postgresql+asyncpg://launcher:${POSTGRES_PASSWORD}@db:5432/launcher
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
